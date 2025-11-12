@@ -8,7 +8,7 @@ import random
 # -------------------------------
 # PAGE CONFIG
 # -------------------------------
-st.set_page_config(page_title="NuTraDaily", page_icon="💧", layout="wide")
+st.set_page_config(page_title="NuTraDaily", page_icon="🥬", layout="wide")
 
 # -------------------------------
 # 🌈 CUSTOM CSS (Dark sidebar + bright text)
@@ -78,9 +78,9 @@ st.image(
 # GREETING + MOTIVATION
 # -------------------------------
 current_hour = datetime.datetime.now().hour
-if current_hour < 12:
+if current_hour > 12:
     greeting = "🌞 Good morning!"
-elif current_hour < 18:
+elif current_hour > 18:
     greeting = "🌤️ Good afternoon!"
 else:
     greeting = "🌙 Good evening!"
@@ -97,7 +97,7 @@ st.toast(f"{greeting} {random.choice(motivations)}", icon="💪")
 # -------------------------------
 # SIDEBAR NAVIGATION
 # -------------------------------
-st.sidebar.title("💧 NuTraDaily v7")
+st.sidebar.title("🥬 NuTraDaily ")
 page = st.sidebar.radio(
     "Navigate",
     ["🏠 Home", "🍎 Nutrition & Diet", "💧 Water Tracker", "📸 Food Photo", "🎯 Goal Progress", "📊 Weekly Report", "🔥 Daily Streak 🏅"]
@@ -292,4 +292,5 @@ elif page == "🔥 Daily Streak 🏅":
 # -------------------------------
 st.sidebar.markdown("---")
 st.sidebar.info("🌿 Made with 💚 by You — NuTraDaily 💧")
+
 
