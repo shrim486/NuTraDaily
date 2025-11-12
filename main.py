@@ -1,30 +1,45 @@
 import streamlit as st
 import pandas as pd
+import datetime
 import os
+import random
 
 # -------------------------------
 # PAGE CONFIG
 # -------------------------------
-st.set_page_config(
-    page_title="NuTraDaily",
-    page_icon="logo.png",
-    layout="wide"
-)
+st.set_page_config(page_title="NuTraDaily", page_icon="🥬", layout="wide")
 
 # -------------------------------
-# BACKGROUND & STYLE
+# 🌈 CUSTOM CSS
 # -------------------------------
 page_bg = """
 <style>
 [data-testid="stAppViewContainer"] {
-    background: url("background.jpg") no-repeat center center fixed;
+    background: url('background.jpg');
     background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     font-family: 'Poppins', sans-serif;
     color: #1b4332;
 }
 
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1b4332 0%, #2d6a4f 100%);
+    color: #ffffff;
+}
+[data-testid="stSidebar"] h1, 
+[data-testid="stSidebar"] h2, 
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] p, 
+[data-testid="stSidebar"] div {
+    color: #f1faee !important;
+    font-weight: 600 !important;
+}
+
+/* Buttons */
 button {
-    border-radius: 10px !important;
+    border-radius: 12px !important;
     font-weight: 600 !important;
     background-color: #52b788 !important;
     color: white !important;
@@ -33,164 +48,179 @@ button:hover {
     background-color: #40916c !important;
 }
 
-.header {
-    text-align: center;
+/* Logo + Title */
+.logo {
+    position: absolute;
+    top: 20px;
+    left: 30px;
+}
+.title-image {
+    display: block;
+    margin: auto;
+    width: 320px;
+}
+
+/* Add-ons Section */
+.addon-space {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
     margin-top: 40px;
 }
-.corner-logo {
-    position: absolute;
-    top: 15px;
-    left: 20px;
-}
-.corner-logo img {
-    width: 80px;
-}
-.login-buttons {
-    position: fixed;
-    bottom: 25px;
-    right: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.addon-space img {
+    width: 120px;
+    height: auto;
+    border-radius: 10px;
+    cursor: pointer;
 }
 </style>
 """
 st.markdown(page_bg, unsafe_allow_html=True)
 
 # -------------------------------
-# FILE SETUP
+# FILE HANDLING + FIX
 # -------------------------------
 user_file = "users.csv"
+expected_cols = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal"]
+
 if not os.path.exists(user_file):
-    pd.DataFrame(columns=["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal"]).to_csv(user_file, index=False)
+    pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
+else:
+    try:
+        df = pd.read_csv(user_file)
+        if list(df.columns) != expected_cols:
+            pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
+    except Exception:
+        pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
 
-# -------------------------------
-# SESSION STATE
-# -------------------------------
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "email" not in st.session_state:
-    st.session_state.email = ""
+def load_users():
+    return pd.read_csv(user_file)
 
-# -------------------------------
-# FUNCTIONS
-# -------------------------------
 def save_user(data):
-    df = pd.read_csv(user_file)
+    df = load_users()
     if data["Email"] in df["Email"].values:
-        st.warning("⚠️ Email already registered. Please login.")
-        return
+        st.warning("⚠️ Email already registered! Please log in instead.")
+        return False
     df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
     df.to_csv(user_file, index=False)
-    st.success("✅ Account created successfully! You can now log in.")
-    st.session_state.page = "login"
+    st.success("✅ Sign-up successful! You can now log in.")
+    return True
 
-def verify_user(email, password):
-    df = pd.read_csv(user_file)
+def authenticate(email, password):
+    df = load_users()
     user = df[(df["Email"] == email) & (df["Password"] == password)]
     return not user.empty
 
 # -------------------------------
-# PAGES
+# AUTHENTICATION PAGES
 # -------------------------------
-def home_page():
-    st.markdown('<div class="corner-logo"><img src="logo.png"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="header"><img src="title.png" height="90"></div>', unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center; margin-top:20px;'>Welcome to NuTraDaily 🌿</h2>", unsafe_allow_html=True)
-    st.info("Track your wellness, nutrition, and hydration goals — all in one place!")
-
-    st.markdown(
-        """
-        <div style='margin-top:50px; text-align:center;'>
-            <h3>🚀 Add-ons Coming Soon</h3>
-            <img src='https://cdn-icons-png.flaticon.com/512/869/869636.png' width='150' style='margin:10px;'>
-            <img src='https://cdn-icons-png.flaticon.com/512/1256/1256650.png' width='150' style='margin:10px;'>
-            <img src='https://cdn-icons-png.flaticon.com/512/679/679922.png' width='150' style='margin:10px;'>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
 def signup_page():
-    st.title("🧾 Create Account")
+    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
+    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
+    st.subheader("📝 Sign Up for NuTraDaily")
+
     with st.form("signup_form"):
         name = st.text_input("Full Name")
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
-        height = st.number_input("Height (cm)", 100, 250, 170)
-        weight = st.number_input("Weight (kg)", 30, 200, 65)
+        height = st.number_input("Height (cm)", min_value=50.0, max_value=250.0)
+        weight = st.number_input("Weight (kg)", min_value=10.0, max_value=300.0)
         gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-        activity = st.selectbox("Activity Level", ["Low", "Moderate", "High"])
-        goal = st.radio("Goal", ["Weight Loss", "Weight Gain", "Maintain"])
-        submit = st.form_submit_button("Sign Up")
+        activity = st.selectbox("Physical Activity Level", ["Low", "Moderate", "High"])
+        goal = st.selectbox("Goal", ["Weight Loss", "Weight Gain", "Maintenance"])
+        submit = st.form_submit_button("Sign Up ✅")
 
         if submit:
-            if name and email and password:
-                save_user({
-                    "Name": name,
-                    "Email": email,
-                    "Password": password,
-                    "Height": height,
-                    "Weight": weight,
-                    "Gender": gender,
-                    "Activity": activity,
-                    "Goal": goal
-                })
-            else:
-                st.warning("⚠️ Fill all required fields.")
+            save_user({
+                "Name": name,
+                "Email": email,
+                "Password": password,
+                "Height": height,
+                "Weight": weight,
+                "Gender": gender,
+                "Activity": activity,
+                "Goal": goal
+            })
+
+    st.markdown("---")
+    st.info("Already have an account?")
+    if st.button("🔑 Go to Login"):
+        st.session_state.page = "login"
 
 def login_page():
-    st.title("🔐 Login")
-    with st.form("login_form"):
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        submit = st.form_submit_button("Login")
-        if submit:
-            if verify_user(email, password):
-                st.session_state.logged_in = True
-                st.session_state.email = email
-                st.success("✅ Logged in successfully!")
-                st.session_state.page = "dashboard"
-            else:
-                st.error("❌ Invalid email or password.")
+    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
+    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
+    st.subheader("🔐 Login to NuTraDaily")
 
-def dashboard_page():
-    st.markdown('<div class="corner-logo"><img src="logo.png"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="header"><img src="title.png" height="90"></div>', unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center;'>Welcome Back 🌱</h2>", unsafe_allow_html=True)
-    st.info("Your health journey starts here! Stay consistent 💪")
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.page = "home"
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login ✅"):
+        if authenticate(email, password):
+            st.session_state.logged_in = True
+            st.session_state.user_email = email
+            st.success("🎉 Login successful!")
+        else:
+            st.error("❌ Invalid email or password!")
+
+    st.markdown("---")
+    st.info("Don't have an account?")
+    if st.button("📝 Go to Sign Up"):
+        st.session_state.page = "signup"
 
 # -------------------------------
-# PAGE NAVIGATION LOGIC
+# MAIN APP (AFTER LOGIN)
 # -------------------------------
-if not st.session_state.logged_in:
-    # Login/Sign up floating buttons
-    st.markdown("""
-        <div class='login-buttons'>
-            <button onclick="window.location.href='?signup'">Sign Up</button>
-            <button onclick="window.location.href='?login'">Login</button>
+def main_app():
+    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
+    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
+
+    current_hour = datetime.datetime.now().hour
+    if 0 <= current_hour < 12:
+        greeting = "🌞 Good morning!"
+    elif 12 <= current_hour < 17:
+        greeting = "🌤️ Good afternoon!"
+    else:
+        greeting = "🌙 Good evening!"
+
+    motivations = [
+        "💧 Stay hydrated — your body thanks you for every sip!",
+        "🍎 Every healthy choice adds up — keep going!",
+        "🏃‍♀️ Don’t stop now! You’re closer than you think!",
+        "💚 Your health journey is progress, not perfection.",
+        "🌿 Take a deep breath. You’re doing amazing!"
+    ]
+    st.toast(f"{greeting} {random.choice(motivations)}", icon="💪")
+
+    st.title("🌿 Welcome to NuTraDaily!")
+    st.write("Your personalized nutrition and fitness tracker.")
+
+    st.markdown(
+        """
+        <div class="addon-space">
+            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1" alt="Add-On 1"></a>
+            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2" alt="Add-On 2"></a>
         </div>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # Replace the JavaScript navigation with Streamlit logic
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Sign Up"):
-            st.session_state.page = "signup"
-    with col2:
-        if st.button("Login"):
-            st.session_state.page = "login"
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.session_state.page = "login"
 
-    if st.session_state.page == "home":
-        home_page()
-    elif st.session_state.page == "signup":
-        signup_page()
-    elif st.session_state.page == "login":
-        login_page()
+# -------------------------------
+# NAVIGATION
+# -------------------------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "page" not in st.session_state:
+    st.session_state.page = "login"
+
+if st.session_state.logged_in:
+    main_app()
 else:
-    dashboard_page()
+    if st.session_state.page == "signup":
+        signup_page()
+    else:
+        login_page()
