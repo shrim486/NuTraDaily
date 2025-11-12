@@ -81,7 +81,7 @@ import datetime
 
 current_hour = datetime.datetime.now().hour
 
-if 0 <= current_hour < 12:
+if 0 <= current_hour > 12:
     greeting = "🌞 Good morning!"
 elif 12 <= current_hour < 17:
     greeting = "🌤️ Good afternoon!"
@@ -297,6 +297,7 @@ elif page == "🔥 Daily Streak 🏅":
 # -------------------------------
 st.sidebar.markdown("---")
 st.sidebar.info("🌿 Made with 💚 by You — NuTraDaily 💧")
+
 
 
 
