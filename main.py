@@ -45,9 +45,8 @@ def pretty_date(dt):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 # -------------------- Assets --------------------
-# Use logo (2).png as central logo and page icon (fallback to logo.png)
 LOGO2_B64 = file_to_base64("logo (2).png") or file_to_base64("logo.png")
-# backgrounds
+TITLE2_B64 = file_to_base64("title (2).png")
 LOGIN_BG_B64 = file_to_base64("login.jpg")
 GLOBAL_BG_B64 = file_to_base64("body.jpg") or file_to_base64("background2.jpg") or file_to_base64("background.jpg")
 
@@ -57,7 +56,7 @@ USER_COLS = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activit
 INTAKE_CSV = "intake.csv"
 STREAKS_JSON = "streaks.json"
 
-# -------------------- Local food DB (placeholder) --------------------
+# -------------------- Local food DB --------------------
 FOOD_DB = {
     "apple": {"cal": 52},
     "banana": {"cal": 96},
@@ -170,32 +169,39 @@ def days_since_first_active(email):
 # -------------------- Streamlit config --------------------
 favicon = None
 if LOGO2_B64:
-    # write favicon bytes to a temporary file for Streamlit page_icon
     favicon = "logo (2).png" if os.path.exists("logo (2).png") else ("logo.png" if os.path.exists("logo.png") else "💧")
 st.set_page_config(page_title="NuTraDaily", page_icon=favicon, layout="wide")
 
-# -------------------- CSS --------------------
+# -------------------- CSS (white text, responsive, no white columns) --------------------
 GLOBAL_BG_CSS = f'background: url("data:image/jpg;base64,{GLOBAL_BG_B64}") center/cover fixed;' if GLOBAL_BG_B64 else ""
 LOGIN_BG_CSS = f'background: url("data:image/jpg;base64,{LOGIN_BG_B64}") center/cover fixed;' if LOGIN_BG_B64 else ""
 
 st.markdown(f"""
 <style>
-/* global background (applies to non-login pages by default) */
+/* background */
 [data-testid="stAppViewContainer"] {{
     {GLOBAL_BG_CSS}
     font-family: 'Poppins', sans-serif;
-    color: #073a2e;
+    color: #ffffff; /* white text globally */
 }}
 
-/* remove white column look: transparent panels */
+/* remove white column look */
+div.block-container {{
+    padding-top: 8px;
+    padding-bottom: 8px;
+}}
+.section {{
+    color: #fff;
+}}
 .panel, .about-panel, .profile-panel {{
-    background: transparent !important;
+    background: rgba(0,0,0,0.20) !important; /* semi-transparent to keep readability */
     box-shadow: none !important;
     border: none !important;
     padding: 12px 8px !important;
+    color: #fff !important;
 }}
 
-/* centered logo */
+/* center logo */
 .logo-center {{
     display:block;
     margin: 8px auto 8px;
@@ -211,22 +217,26 @@ st.markdown(f"""
     padding: 8px;
 }}
 .form-card {{
-    width: 340px;
+    width: 360px;
     max-width: 92%;
-    background: rgba(255,255,255,0.0);
+    background: transparent;
     border-radius:8px;
     padding: 6px;
     text-align:center;
+    color: #fff;
 }}
 
 /* stacked buttons styling */
 .st-btn {{
     display:block;
     width:100%;
-    padding:10px 0;
-    margin:8px 0;
+    padding:12px 0;
+    margin:10px 0;
     border-radius:8px;
     font-weight:700;
+    background:#1f6b53;
+    color:#fff;
+    border:none;
 }}
 
 /* floating help button top-right */
@@ -235,8 +245,8 @@ st.markdown(f"""
     right: 18px;
     top: 18px;
     z-index: 9999;
-    background: rgba(255,255,255,0.95);
-    color: #073a2e;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
     border-radius:50%;
     width:42px;
     height:42px;
@@ -244,11 +254,11 @@ st.markdown(f"""
     align-items:center;
     justify-content:center;
     font-weight:700;
-    border: 1px solid rgba(0,0,0,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
     text-decoration:none;
 }}
 
-/* help overlay using :target */
+/* help overlay */
 #help-modal {{
     position: fixed;
     right: 18px;
@@ -256,26 +266,47 @@ st.markdown(f"""
     z-index: 9998;
     width:320px;
     max-width:92%;
-    background: rgba(255,255,255,0.96);
+    background: rgba(0,0,0,0.85);
     border-radius:8px;
     padding:12px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    color: #fff;
     display:none;
 }}
 #help-modal:target {{
     display:block;
 }}
 
+/* glass UI */
+.glass-wrap {{
+    width:120px;
+    height:220px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    position:relative;
+    overflow:hidden;
+    background: linear-gradient(to top, rgba(255,255,255,0.02), rgba(255,255,255,0.03));
+    box-shadow: inset 0 -30px 30px rgba(0,0,0,0.2);
+}}
+.glass-fill {{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:0%;
+    background: linear-gradient(to top, #28a6ff, #67d3ff);
+    transition: height 0.5s ease;
+}}
+
 /* footer styling */
 .footer {{
     font-size:12px;
-    color:#666;
+    color:#ddd;
     text-align:center;
     margin-top:12px;
     padding-top:6px;
 }}
 
-/* responsive: ensure stacking on small screens */
+/* responsive tweaks */
 @media(min-width:1000px) {{
     .form-card {{ width: 420px; }}
 }}
@@ -307,21 +338,20 @@ def render_logo_top_center():
     if LOGO2_B64:
         st.markdown(f'<img src="data:image/png;base64,{LOGO2_B64}" class="logo-center"/>', unsafe_allow_html=True)
     else:
-        st.markdown("<h2 style='text-align:center'>NuTraDaily</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center;color:#fff;'>NuTraDaily</h2>", unsafe_allow_html=True)
 
 def render_help_float():
-    # anchored help button opens the help modal via #help
     st.markdown('<a href="#help" class="help-float">?</a>', unsafe_allow_html=True)
     help_html = """
     <div id="help-modal">
       <strong>How to sign up / login</strong>
-      <ol style="padding-left:14px;margin-top:8px;">
-        <li>Click <strong>Sign Up</strong>, fill the fields and submit.</li>
-        <li>After sign up you will be automatically logged in.</li>
-        <li>To log in later, click <strong>Login</strong> and enter credentials.</li>
-        <li>Profile picture can be changed in Profile page.</li>
+      <ol style="padding-left:14px;margin-top:8px;color:#fff;">
+        <li>Click <strong>Sign Up</strong>, fill fields & submit.</li>
+        <li>You will be auto-logged in after sign up.</li>
+        <li>To log in later, click <strong>Login</strong>.</li>
+        <li>Change profile pic on Profile page.</li>
       </ol>
-      <div style="text-align:right;"><a href="#" style="color:#0366d6;font-weight:700;">Close</a></div>
+      <div style="text-align:right;"><a href="#" style="color:#9fe1ff;font-weight:700;">Close</a></div>
     </div>
     """
     st.markdown(help_html, unsafe_allow_html=True)
@@ -384,15 +414,14 @@ def about_page():
         img_b64 = file_to_base64("image.jpg")
         st.markdown(f'<img src="data:image/jpg;base64,{img_b64}" style="width:100%;border-radius:8px;margin-bottom:12px;">', unsafe_allow_html=True)
     st.text_area("Write About Us", value="Welcome to NuTraDaily — your modern wellness companion.", height=140, key="about_text")
-    # compact contact / feedback / email
     c1, c2, c3 = st.columns([1,1,1])
     with c1:
-        st.markdown('<a href="tel:+911234567890" class="link-compact">📞 Contact</a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="tel:+918951200675" style="color:#fff;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;text-decoration:none;">📞 Contact</a>', unsafe_allow_html=True)
     with c2:
         if st.button("Feedback", key="about_fb"):
             st.session_state.show_feedback = True
     with c3:
-        st.markdown('<a href="mailto:hello@nutradaily.example" class="link-compact">✉️ Email</a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="mailto:arju2006nnn@gmail.com" style="color:#fff;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;text-decoration:none;">✉️ Email</a>', unsafe_allow_html=True)
     if st.session_state.get("show_feedback"):
         with st.form("feedback_about"):
             st.text_input("Name (optional)")
@@ -415,6 +444,9 @@ def profile_page():
         email = st.session_state["current_user"]
         rec = get_user_record(email)
         if rec:
+            # show title (2).png above profile pic in nav panel reflected here too
+            if TITLE2_B64:
+                st.markdown(f'<div style="text-align:center;margin-bottom:6px;"><img src="data:image/png;base64,{TITLE2_B64}" style="width:180px;"></div>', unsafe_allow_html=True)
             col1, col2 = st.columns([1,2])
             with col1:
                 b64 = get_profile_b64(email)
@@ -455,9 +487,24 @@ def water_page():
     with c3:
         if st.button("Reset"):
             st.session_state.water_glasses = 0
+    # compute fill
     consumed_l = (st.session_state.water_glasses * glass_ml) / 1000.0
     pct = min(consumed_l / daily_goal_l, 1.0) if daily_goal_l else 0.0
-    st.write(f"**{consumed_l:.2f} L / {daily_goal_l:.2f} L**")
+    filled_pct = int(min(100, (consumed_l / daily_goal_l) * 100)) if daily_goal_l else 0
+    # glass visualization and stats (white text)
+    html = f"""
+    <div style="display:flex;gap:20px;align-items:flex-end;">
+        <div class="glass-wrap" aria-hidden="true">
+            <div class="glass-fill" style="height:{filled_pct}%;"></div>
+        </div>
+        <div style="color:#fff;">
+            <div style="font-weight:700;font-size:18px;">{consumed_l:.2f} L / {daily_goal_l:.2f} L</div>
+            <div style="margin-top:6px;">Glasses: {st.session_state.water_glasses} ({glass_ml} ml each)</div>
+            <div style="margin-top:6px;">Progress: {pct*100:.1f}%</div>
+        </div>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
     st.progress(pct)
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
@@ -549,38 +596,48 @@ def entry_screen():
     inject_login_bg()
     render_logo_top_center()
     render_help_float()
-    # center compact framed area
     st.markdown('<div class="form-card-wrap"><div class="form-card">', unsafe_allow_html=True)
 
-    # Stack: SIGN UP then LOGIN (vertical, centered)
-    st.markdown("<div style='margin-bottom:6px;text-align:center;'>", unsafe_allow_html=True)
-    st.markdown("### Join NuTraDaily", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Exclusive toggles: either Sign Up or Login visible
+    if "auth_mode" not in st.session_state:
+        st.session_state.auth_mode = "signup"  # default stacked view shows signup first
 
-    # Sign Up area
-    with st.expander("Sign Up", expanded=True):
+    # Toggle buttons (stacked & centered)
+    col = st.columns([1])[0]
+    with col:
+        if st.button("Sign Up", key="toggle_signup", help="Show sign up"):
+            st.session_state.auth_mode = "signup"
+        if st.button("Login", key="toggle_login", help="Show login"):
+            st.session_state.auth_mode = "login"
+
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+    if st.session_state.auth_mode == "signup":
         signup_form()
-
-    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-
-    # Login area (stacked under sign up)
-    with st.expander("Login", expanded=False):
+    else:
         login_form()
 
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 # -------------------- Sidebar & routing --------------------
 def sidebar_nav():
-    # show small profile block only (no title)
+    # show title (2).png at top of sidebar
+    if TITLE2_B64:
+        st.sidebar.markdown(f'<div style="text-align:center;margin-top:10px;"><img src="data:image/png;base64,{TITLE2_B64}" style="width:180px;"></div>', unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown("<h3 style='text-align:center;color:#fff;'>NuTraDaily</h3>", unsafe_allow_html=True)
+
+    st.sidebar.markdown("---")
+    # profile block under title
     if st.session_state.get("logged_in"):
         email = st.session_state.get("current_user", "")
         b64 = get_profile_b64(email)
         rec = get_user_record(email)
         name = rec["Name"] if rec else email.split("@")[0]
         st.sidebar.image(f"data:image/png;base64,{b64}", width=72)
-        st.sidebar.markdown(f"**{name}**  \n<small style='color:#666'>{email}</small>", unsafe_allow_html=True)
+        st.sidebar.markdown(f"**{name}**  \n<small style='color:#ddd'>{email}</small>", unsafe_allow_html=True)
     else:
-        st.sidebar.write("Not logged in")
+        st.sidebar.markdown("<div style='color:#fff'>Not logged in</div>", unsafe_allow_html=True)
 
     st.sidebar.markdown("---")
     choice = st.sidebar.selectbox("Navigate", ["About", "Profile", "Water", "Nutrition", "Progress", "Streaks"])
@@ -598,11 +655,11 @@ if "logged_in" not in st.session_state:
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = False
 
-# show welcome flash (big) when sign up / login
+# welcome flash
 if st.session_state.get("show_welcome"):
     name = st.session_state.get("welcome_name", "Friend")
     placeholder = st.empty()
-    placeholder.markdown(f"<div style='text-align:center;margin-top:80px;font-size:40px;font-weight:900;'>✨ Welcome, {name}! ✨</div>", unsafe_allow_html=True)
+    placeholder.markdown(f"<div style='text-align:center;margin-top:80px;font-size:40px;font-weight:900;color:#fff;'>✨ Welcome, {name}! ✨</div>", unsafe_allow_html=True)
     time.sleep(1.2)
     placeholder.empty()
     st.session_state.show_welcome = False
@@ -624,3 +681,4 @@ if st.session_state.logged_in:
         streaks_page()
 else:
     entry_screen()
+
