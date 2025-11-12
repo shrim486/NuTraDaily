@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import datetime
 import os
-import random
 
 # -------------------------------
-# PAGE CONFIG (using logo as icon)
+# PAGE CONFIG
 # -------------------------------
 st.set_page_config(
     page_title="NuTraDaily",
@@ -14,7 +12,7 @@ st.set_page_config(
 )
 
 # -------------------------------
-# BACKGROUND IMAGE & GLOBAL STYLE
+# BACKGROUND & STYLE
 # -------------------------------
 page_bg = """
 <style>
@@ -25,12 +23,6 @@ page_bg = """
     color: #1b4332;
 }
 
-/* Sidebar hidden */
-[data-testid="stSidebar"] {
-    background: rgba(255,255,255,0);
-}
-
-/* Buttons */
 button {
     border-radius: 10px !important;
     font-weight: 600 !important;
@@ -41,29 +33,18 @@ button:hover {
     background-color: #40916c !important;
 }
 
-/* Center main logo and title */
-.header-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
+.header {
+    text-align: center;
+    margin-top: 40px;
 }
-.header-container img {
-    height: 80px;
-}
-
-/* Corner logo */
 .corner-logo {
     position: absolute;
-    top: 20px;
+    top: 15px;
     left: 20px;
 }
 .corner-logo img {
-    width: 90px;
-    border-radius: 10px;
+    width: 80px;
 }
-
-/* Login/Signup Buttons bottom corner */
 .login-buttons {
     position: fixed;
     bottom: 25px;
@@ -71,25 +52,6 @@ button:hover {
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
-.login-buttons button {
-    width: 140px;
-    font-size: 15px;
-}
-
-/* Add-on space */
-.addon-space {
-    margin-top: 60px;
-    text-align: center;
-}
-.addon-space img {
-    width: 200px;
-    margin: 10px;
-    border-radius: 15px;
-    transition: transform 0.2s;
-}
-.addon-space img:hover {
-    transform: scale(1.05);
 }
 </style>
 """
@@ -105,6 +67,8 @@ if not os.path.exists(user_file):
 # -------------------------------
 # SESSION STATE
 # -------------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "email" not in st.session_state:
@@ -115,8 +79,13 @@ if "email" not in st.session_state:
 # -------------------------------
 def save_user(data):
     df = pd.read_csv(user_file)
+    if data["Email"] in df["Email"].values:
+        st.warning("⚠️ Email already registered. Please login.")
+        return
     df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
     df.to_csv(user_file, index=False)
+    st.success("✅ Account created successfully! You can now log in.")
+    st.session_state.page = "login"
 
 def verify_user(email, password):
     df = pd.read_csv(user_file)
@@ -124,10 +93,28 @@ def verify_user(email, password):
     return not user.empty
 
 # -------------------------------
-# LOGIN & SIGNUP FORMS
+# PAGES
 # -------------------------------
-def show_signup():
-    st.title("🧾 Create Your NuTraDaily Account")
+def home_page():
+    st.markdown('<div class="corner-logo"><img src="logo.png"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header"><img src="title.png" height="90"></div>', unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center; margin-top:20px;'>Welcome to NuTraDaily 🌿</h2>", unsafe_allow_html=True)
+    st.info("Track your wellness, nutrition, and hydration goals — all in one place!")
+
+    st.markdown(
+        """
+        <div style='margin-top:50px; text-align:center;'>
+            <h3>🚀 Add-ons Coming Soon</h3>
+            <img src='https://cdn-icons-png.flaticon.com/512/869/869636.png' width='150' style='margin:10px;'>
+            <img src='https://cdn-icons-png.flaticon.com/512/1256/1256650.png' width='150' style='margin:10px;'>
+            <img src='https://cdn-icons-png.flaticon.com/512/679/679922.png' width='150' style='margin:10px;'>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def signup_page():
+    st.title("🧾 Create Account")
     with st.form("signup_form"):
         name = st.text_input("Full Name")
         email = st.text_input("Email")
@@ -137,9 +124,9 @@ def show_signup():
         gender = st.selectbox("Gender", ["Male", "Female", "Other"])
         activity = st.selectbox("Activity Level", ["Low", "Moderate", "High"])
         goal = st.radio("Goal", ["Weight Loss", "Weight Gain", "Maintain"])
-        submitted = st.form_submit_button("Sign Up")
+        submit = st.form_submit_button("Sign Up")
 
-        if submitted:
+        if submit:
             if name and email and password:
                 save_user({
                     "Name": name,
@@ -151,72 +138,59 @@ def show_signup():
                     "Activity": activity,
                     "Goal": goal
                 })
-                st.success("✅ Account created successfully! You can now log in.")
             else:
-                st.warning("⚠️ Please fill all required fields.")
+                st.warning("⚠️ Fill all required fields.")
 
-def show_login():
-    st.title("🔐 Login to NuTraDaily")
+def login_page():
+    st.title("🔐 Login")
     with st.form("login_form"):
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Login")
-        if login_btn:
+        submit = st.form_submit_button("Login")
+        if submit:
             if verify_user(email, password):
                 st.session_state.logged_in = True
                 st.session_state.email = email
-                st.success("✅ Login successful! Welcome back 🌿")
+                st.success("✅ Logged in successfully!")
+                st.session_state.page = "dashboard"
             else:
-                st.error("❌ Invalid credentials.")
+                st.error("❌ Invalid email or password.")
+
+def dashboard_page():
+    st.markdown('<div class="corner-logo"><img src="logo.png"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header"><img src="title.png" height="90"></div>', unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'>Welcome Back 🌱</h2>", unsafe_allow_html=True)
+    st.info("Your health journey starts here! Stay consistent 💪")
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.page = "home"
 
 # -------------------------------
-# MAIN DASHBOARD (AFTER LOGIN)
-# -------------------------------
-def show_dashboard():
-    st.markdown('<div class="corner-logo"><img src="logo.png" alt="logo"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="header-container"><img src="title.png" alt="title"></div>', unsafe_allow_html=True)
-
-    st.markdown("<h2 style='text-align:center; margin-top:40px;'>Welcome to NuTraDaily 🌱</h2>", unsafe_allow_html=True)
-
-    st.info("💡 Explore your health dashboard, track nutrition, and achieve your goals!")
-
-    # Add-ons space
-    st.markdown('<div class="addon-space">', unsafe_allow_html=True)
-    st.markdown("<h3>🚀 Coming Soon: Add-ons</h3>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.image("https://cdn-icons-png.flaticon.com/512/869/869636.png", caption="AI Food Scanner", use_column_width=False)
-    with col2:
-        st.image("https://cdn-icons-png.flaticon.com/512/1256/1256650.png", caption="Workout Tracker", use_column_width=False)
-    with col3:
-        st.image("https://cdn-icons-png.flaticon.com/512/679/679922.png", caption="Sleep Monitor", use_column_width=False)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# -------------------------------
-# RENDER LOGIC
+# PAGE NAVIGATION LOGIC
 # -------------------------------
 if not st.session_state.logged_in:
-    # Bottom corner login/signup buttons
+    # Login/Sign up floating buttons
     st.markdown("""
-        <div class="login-buttons">
-            <form action="?page=signup" method="get">
-                <button type="submit">Sign Up</button>
-            </form>
-            <form action="?page=login" method="get">
-                <button type="submit">Login</button>
-            </form>
+        <div class='login-buttons'>
+            <button onclick="window.location.href='?signup'">Sign Up</button>
+            <button onclick="window.location.href='?login'">Login</button>
         </div>
     """, unsafe_allow_html=True)
 
-    page = st.query_params.get("page", ["home"])[0]
+    # Replace the JavaScript navigation with Streamlit logic
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Sign Up"):
+            st.session_state.page = "signup"
+    with col2:
+        if st.button("Login"):
+            st.session_state.page = "login"
 
-    if page == "signup":
-        show_signup()
-    elif page == "login":
-        show_login()
-    else:
-        st.markdown('<div class="header-container"><img src="title.png" alt="title"></div>', unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; margin-top:60px;'>Welcome to NuTraDaily 🌿</h2>", unsafe_allow_html=True)
-        st.info("Track your health, food, and fitness — all in one place!")
+    if st.session_state.page == "home":
+        home_page()
+    elif st.session_state.page == "signup":
+        signup_page()
+    elif st.session_state.page == "login":
+        login_page()
 else:
-    show_dashboard()
+    dashboard_page()
