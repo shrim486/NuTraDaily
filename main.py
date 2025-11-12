@@ -4,84 +4,95 @@ import datetime
 import os
 import random
 import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
 
-# -------------------------------
-# PAGE CONFIG (uses your logo as favicon)
-# -------------------------------
+# ------------------------------------------------
+# PAGE CONFIG (App icon = logo)
+# ------------------------------------------------
 st.set_page_config(page_title="NuTraDaily", page_icon="logo.png", layout="wide")
 
-# -------------------------------
-# 🌈 CUSTOM CSS
-# -------------------------------
-page_bg = """
+# ------------------------------------------------
+# IMAGE HANDLING (Ensures logo, title & bg work everywhere)
+# ------------------------------------------------
+def load_image_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return None
+
+bg_base64 = load_image_base64("background.jpg")
+logo_base64 = load_image_base64("logo.png")
+title_base64 = load_image_base64("title.png")
+
+# ------------------------------------------------
+# CUSTOM CSS (Optimized for speed)
+# ------------------------------------------------
+css = f"""
 <style>
-[data-testid="stAppViewContainer"] {
-    background: url('background.jpg');
+[data-testid="stAppViewContainer"] {{
+    background: url("data:image/jpg;base64,{bg_base64 if bg_base64 else ''}");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     font-family: 'Poppins', sans-serif;
     color: #1b4332;
-}
+}}
 
-/* Sidebar */
-[data-testid="stSidebar"] {
+[data-testid="stSidebar"] {{
     background: linear-gradient(180deg, #1b4332 0%, #2d6a4f 100%);
     color: #ffffff;
-}
+}}
+
 [data-testid="stSidebar"] h1, 
 [data-testid="stSidebar"] h2, 
 [data-testid="stSidebar"] label, 
 [data-testid="stSidebar"] p, 
-[data-testid="stSidebar"] div {
+[data-testid="stSidebar"] div {{
     color: #f1faee !important;
     font-weight: 600 !important;
-}
+}}
 
-/* Buttons */
-button {
-    border-radius: 12px !important;
+button {{
+    border-radius: 10px !important;
     font-weight: 600 !important;
     background-color: #52b788 !important;
     color: white !important;
-}
-button:hover {
+}}
+button:hover {{
     background-color: #40916c !important;
-}
+}}
 
-/* Logo + Title */
-.logo {
+.logo {{
     position: absolute;
-    top: 20px;
+    top: 15px;
     left: 25px;
-    width: 90px;
-}
-.title-image {
+    width: 80px;
+}}
+.title-image {{
     display: block;
     margin: auto;
-    width: 320px;
-}
+    width: 280px;
+}}
 
-/* Add-ons Section */
-.addon-space {
+.addon-space {{
     display: flex;
     justify-content: center;
     gap: 25px;
     margin-top: 40px;
-}
-.addon-space img {
+}}
+.addon-space img {{
     width: 120px;
-    height: auto;
     border-radius: 10px;
     cursor: pointer;
-}
+}}
 </style>
 """
-st.markdown(page_bg, unsafe_allow_html=True)
+st.markdown(css, unsafe_allow_html=True)
 
-# -------------------------------
-# FILE HANDLING + FIX
-# -------------------------------
+# ------------------------------------------------
+# USER FILE HANDLING (error-proof)
+# ------------------------------------------------
 user_file = "users.csv"
 expected_cols = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal"]
 
@@ -113,14 +124,16 @@ def authenticate(email, password):
     user = df[(df["Email"] == email) & (df["Password"] == password)]
     return not user.empty
 
-# -------------------------------
+# ------------------------------------------------
 # AUTH PAGES
-# -------------------------------
+# ------------------------------------------------
 def signup_page():
-    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
-    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
-    st.subheader("📝 Sign Up for NuTraDaily")
+    if logo_base64:
+        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
+    if title_base64:
+        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
 
+    st.subheader("📝 Sign Up for NuTraDaily")
     with st.form("signup_form"):
         name = st.text_input("Full Name")
         email = st.text_input("Email")
@@ -134,14 +147,9 @@ def signup_page():
 
         if submit:
             save_user({
-                "Name": name,
-                "Email": email,
-                "Password": password,
-                "Height": height,
-                "Weight": weight,
-                "Gender": gender,
-                "Activity": activity,
-                "Goal": goal
+                "Name": name, "Email": email, "Password": password,
+                "Height": height, "Weight": weight, "Gender": gender,
+                "Activity": activity, "Goal": goal
             })
 
     st.markdown("---")
@@ -150,10 +158,12 @@ def signup_page():
         st.session_state.page = "login"
 
 def login_page():
-    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
-    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
-    st.subheader("🔐 Login to NuTraDaily")
+    if logo_base64:
+        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
+    if title_base64:
+        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
 
+    st.subheader("🔐 Login to NuTraDaily")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -170,73 +180,62 @@ def login_page():
     if st.button("📝 Go to Sign Up"):
         st.session_state.page = "signup"
 
-# -------------------------------
+# ------------------------------------------------
 # APP FEATURES
-# -------------------------------
+# ------------------------------------------------
 def water_tracker():
     st.title("💧 Water Tracker")
-    water_goal = st.number_input("Enter your daily goal (liters):", min_value=0.5, max_value=10.0, step=0.5)
-    consumed = st.number_input("Enter water consumed so far (liters):", min_value=0.0, max_value=water_goal, step=0.1)
-    progress = (consumed / water_goal) * 100 if water_goal > 0 else 0
-    st.progress(progress / 100)
-    st.info(f"💦 You’ve reached {progress:.1f}% of your daily goal!")
+    goal = st.number_input("Daily water goal (liters):", 0.5, 10.0, step=0.5)
+    consumed = st.number_input("Consumed so far (liters):", 0.0, goal, step=0.1)
+    percent = (consumed / goal) * 100 if goal else 0
+    st.progress(percent / 100)
+    st.info(f"💦 {percent:.1f}% of goal reached")
 
 def nutrition_page():
     st.title("🍎 Nutrition & Diet Plan")
-    st.write("Track your daily calories and maintain a healthy diet.")
-    calories = st.number_input("Calories consumed today:", min_value=0)
-    goal = st.number_input("Target daily calories:", min_value=1000)
-    st.progress(min(calories / goal, 1.0))
-    st.info(f"🔥 {calories} / {goal} kcal")
+    cal = st.number_input("Calories consumed today:", min_value=0)
+    target = st.number_input("Target calories:", min_value=1000)
+    st.progress(min(cal / target, 1.0))
+    st.info(f"🔥 {cal} / {target} kcal")
 
 def goal_progress():
     st.title("🎯 Goal Progress")
-    st.write("Visualize your weekly progress.")
     dates = pd.date_range(datetime.datetime.now() - datetime.timedelta(days=6), datetime.datetime.now())
     progress = [random.randint(50, 100) for _ in range(7)]
     plt.plot(dates, progress, marker='o')
-    plt.title("Weekly Progress")
     plt.ylabel("Goal Achievement (%)")
     st.pyplot(plt)
 
 def daily_streak():
     st.title("🔥 Daily Streaks & Achievements")
     streak_days = random.randint(1, 15)
-    st.success(f"🔥 You’ve maintained your streak for {streak_days} days straight!")
+    st.success(f"🔥 You've maintained your streak for {streak_days} days straight!")
 
-# -------------------------------
+# ------------------------------------------------
 # MAIN APP
-# -------------------------------
+# ------------------------------------------------
 def main_app():
-    st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
-    st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
+    if logo_base64:
+        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
+    if title_base64:
+        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
 
-    current_hour = datetime.datetime.now().hour
-    greeting = "🌞 Good morning!" if current_hour < 12 else "🌤️ Good afternoon!" if current_hour < 17 else "🌙 Good evening!"
-    motivations = [
-        "💧 Stay hydrated — your body thanks you for every sip!",
-        "🍎 Every healthy choice adds up — keep going!",
-        "🏃‍♀️ Don’t stop now! You’re closer than you think!",
-        "💚 Your health journey is progress, not perfection.",
-    ]
-    st.toast(f"{greeting} {random.choice(motivations)}", icon="💪")
+    greeting = "🌞 Good morning!" if datetime.datetime.now().hour < 12 else \
+               "🌤️ Good afternoon!" if datetime.datetime.now().hour < 17 else "🌙 Good evening!"
+    st.toast(f"{greeting} Stay consistent 💪", icon="💪")
 
     st.sidebar.title("📋 Dashboard")
     choice = st.sidebar.radio("Navigate", ["🏠 Home", "🍎 Nutrition", "💧 Water Tracker", "🎯 Progress", "🔥 Streaks"])
 
     if choice == "🏠 Home":
         st.title("🌿 Welcome to NuTraDaily!")
-        st.write("Your all-in-one health tracking dashboard.")
-        st.markdown(
-            """
-            <div class="addon-space">
-                <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1" alt="Add-On 1"></a>
-                <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2" alt="Add-On 2"></a>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        st.write("Your all-in-one wellness tracking dashboard.")
+        st.markdown("""
+        <div class="addon-space">
+            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1"></a>
+            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2"></a>
+        </div>
+        """, unsafe_allow_html=True)
     elif choice == "🍎 Nutrition":
         nutrition_page()
     elif choice == "💧 Water Tracker":
@@ -251,9 +250,9 @@ def main_app():
         st.session_state.logged_in = False
         st.session_state.page = "login"
 
-# -------------------------------
-# NAVIGATION
-# -------------------------------
+# ------------------------------------------------
+# SESSION NAVIGATION
+# ------------------------------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "page" not in st.session_state:
@@ -266,4 +265,3 @@ else:
         signup_page()
     else:
         login_page()
-
