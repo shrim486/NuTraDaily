@@ -3,11 +3,12 @@ import pandas as pd
 import datetime
 import os
 import random
+import matplotlib.pyplot as plt
 
 # -------------------------------
-# PAGE CONFIG
+# PAGE CONFIG (uses your logo as favicon)
 # -------------------------------
-st.set_page_config(page_title="NuTraDaily", page_icon="🥬", layout="wide")
+st.set_page_config(page_title="NuTraDaily", page_icon="logo.png", layout="wide")
 
 # -------------------------------
 # 🌈 CUSTOM CSS
@@ -52,7 +53,8 @@ button:hover {
 .logo {
     position: absolute;
     top: 20px;
-    left: 30px;
+    left: 25px;
+    width: 90px;
 }
 .title-image {
     display: block;
@@ -112,7 +114,7 @@ def authenticate(email, password):
     return not user.empty
 
 # -------------------------------
-# AUTHENTICATION PAGES
+# AUTH PAGES
 # -------------------------------
 def signup_page():
     st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
@@ -169,43 +171,83 @@ def login_page():
         st.session_state.page = "signup"
 
 # -------------------------------
-# MAIN APP (AFTER LOGIN)
+# APP FEATURES
+# -------------------------------
+def water_tracker():
+    st.title("💧 Water Tracker")
+    water_goal = st.number_input("Enter your daily goal (liters):", min_value=0.5, max_value=10.0, step=0.5)
+    consumed = st.number_input("Enter water consumed so far (liters):", min_value=0.0, max_value=water_goal, step=0.1)
+    progress = (consumed / water_goal) * 100 if water_goal > 0 else 0
+    st.progress(progress / 100)
+    st.info(f"💦 You’ve reached {progress:.1f}% of your daily goal!")
+
+def nutrition_page():
+    st.title("🍎 Nutrition & Diet Plan")
+    st.write("Track your daily calories and maintain a healthy diet.")
+    calories = st.number_input("Calories consumed today:", min_value=0)
+    goal = st.number_input("Target daily calories:", min_value=1000)
+    st.progress(min(calories / goal, 1.0))
+    st.info(f"🔥 {calories} / {goal} kcal")
+
+def goal_progress():
+    st.title("🎯 Goal Progress")
+    st.write("Visualize your weekly progress.")
+    dates = pd.date_range(datetime.datetime.now() - datetime.timedelta(days=6), datetime.datetime.now())
+    progress = [random.randint(50, 100) for _ in range(7)]
+    plt.plot(dates, progress, marker='o')
+    plt.title("Weekly Progress")
+    plt.ylabel("Goal Achievement (%)")
+    st.pyplot(plt)
+
+def daily_streak():
+    st.title("🔥 Daily Streaks & Achievements")
+    streak_days = random.randint(1, 15)
+    st.success(f"🔥 You’ve maintained your streak for {streak_days} days straight!")
+
+# -------------------------------
+# MAIN APP
 # -------------------------------
 def main_app():
     st.markdown('<img src="logo.png" class="logo">', unsafe_allow_html=True)
     st.markdown('<img src="title.png" class="title-image">', unsafe_allow_html=True)
 
     current_hour = datetime.datetime.now().hour
-    if 0 <= current_hour < 12:
-        greeting = "🌞 Good morning!"
-    elif 12 <= current_hour < 17:
-        greeting = "🌤️ Good afternoon!"
-    else:
-        greeting = "🌙 Good evening!"
-
+    greeting = "🌞 Good morning!" if current_hour < 12 else "🌤️ Good afternoon!" if current_hour < 17 else "🌙 Good evening!"
     motivations = [
         "💧 Stay hydrated — your body thanks you for every sip!",
         "🍎 Every healthy choice adds up — keep going!",
         "🏃‍♀️ Don’t stop now! You’re closer than you think!",
         "💚 Your health journey is progress, not perfection.",
-        "🌿 Take a deep breath. You’re doing amazing!"
     ]
     st.toast(f"{greeting} {random.choice(motivations)}", icon="💪")
 
-    st.title("🌿 Welcome to NuTraDaily!")
-    st.write("Your personalized nutrition and fitness tracker.")
+    st.sidebar.title("📋 Dashboard")
+    choice = st.sidebar.radio("Navigate", ["🏠 Home", "🍎 Nutrition", "💧 Water Tracker", "🎯 Progress", "🔥 Streaks"])
 
-    st.markdown(
-        """
-        <div class="addon-space">
-            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1" alt="Add-On 1"></a>
-            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2" alt="Add-On 2"></a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    if choice == "🏠 Home":
+        st.title("🌿 Welcome to NuTraDaily!")
+        st.write("Your all-in-one health tracking dashboard.")
+        st.markdown(
+            """
+            <div class="addon-space">
+                <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1" alt="Add-On 1"></a>
+                <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2" alt="Add-On 2"></a>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    if st.button("🚪 Logout"):
+    elif choice == "🍎 Nutrition":
+        nutrition_page()
+    elif choice == "💧 Water Tracker":
+        water_tracker()
+    elif choice == "🎯 Progress":
+        goal_progress()
+    elif choice == "🔥 Streaks":
+        daily_streak()
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.page = "login"
 
@@ -224,3 +266,4 @@ else:
         signup_page()
     else:
         login_page()
+
