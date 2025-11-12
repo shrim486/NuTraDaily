@@ -98,7 +98,7 @@ def save_user(record):
     record["SignupDate"] = pretty_date(datetime.datetime.now())
     df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
     df.to_csv(USERS_CSV, index=False)
-    st.success("Account created — now log in.")
+    st.success("Account created — thank you for registering with us!")
     return True
 
 def update_user(email, updates: dict):
@@ -170,7 +170,7 @@ def days_since_first_active(email):
 favicon = None
 if LOGO2_B64:
     favicon = "logo (2).png" if os.path.exists("logo (2).png") else ("logo.png" if os.path.exists("logo.png") else "💧")
-st.set_page_config(page_title="NuTraDaily", page_icon=favicon, layout="wide")
+st.set_page_config(page_title="NuTradaILy", page_icon=favicon, layout="wide")
 
 # -------------------- CSS (white text, responsive, no white columns) --------------------
 GLOBAL_BG_CSS = f'background: url("data:image/jpg;base64,{GLOBAL_BG_B64}") center/cover fixed;' if GLOBAL_BG_B64 else ""
@@ -338,7 +338,7 @@ def render_logo_top_center():
     if LOGO2_B64:
         st.markdown(f'<img src="data:image/png;base64,{LOGO2_B64}" class="logo-center"/>', unsafe_allow_html=True)
     else:
-        st.markdown("<h2 style='text-align:center;color:#fff;'>NuTraDaily</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center;color:#fff;'>NuTradaILy</h2>", unsafe_allow_html=True)
 
 def render_help_float():
     st.markdown('<a href="#help" class="help-float">?</a>', unsafe_allow_html=True)
@@ -413,7 +413,7 @@ def about_page():
     if os.path.exists("image.jpg"):
         img_b64 = file_to_base64("image.jpg")
         st.markdown(f'<img src="data:image/jpg;base64,{img_b64}" style="width:100%;border-radius:8px;margin-bottom:12px;">', unsafe_allow_html=True)
-    st.text_area("Write About Us", value="Welcome to NuTraDaily — your modern wellness companion.", height=140, key="about_text")
+    st.text_area("Write About Us", value="Welcome to NuTradaILy — your modern wellness companion.", height=140, key="about_text")
     c1, c2, c3 = st.columns([1,1,1])
     with c1:
         st.markdown(f'<a href="tel:+918951200675" style="color:#fff;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;text-decoration:none;">📞 Contact</a>', unsafe_allow_html=True)
@@ -430,7 +430,7 @@ def about_page():
                 st.success("Thanks — feedback received!")
                 st.session_state.show_feedback = False
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 def profile_page():
     inject_global_bg()
@@ -464,7 +464,7 @@ def profile_page():
                 if st.button("Save profile"):
                     update_user(email, {"Name": new_name, "Height": new_height, "Weight": new_weight, "Activity": new_activity})
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 def water_page():
     inject_global_bg()
@@ -507,7 +507,7 @@ def water_page():
     st.markdown(html, unsafe_allow_html=True)
     st.progress(pct)
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 def nutrition_page():
     inject_global_bg()
@@ -542,7 +542,7 @@ def nutrition_page():
                     add_intake(email, q, cal)
                     st.success(f"Added {q} — {cal} kcal")
             else:
-                st.warning("Item not found in local DB. For web results, integrate a food API (TODO).")
+                st.warning("Sorry for the incconvinience, were working on it!")
         with st.form("manual_food"):
             item = st.text_input("Item name")
             kcal = st.number_input("Calories", 0, 5000, 100)
@@ -558,7 +558,7 @@ def nutrition_page():
             for r in recs:
                 st.write(f"- {r['Item']} — {r['Calories']} kcal")
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 def progress_page():
     inject_global_bg()
@@ -574,7 +574,7 @@ def progress_page():
     plt.tight_layout()
     st.pyplot(plt)
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 def streaks_page():
     inject_global_bg()
@@ -589,7 +589,7 @@ def streaks_page():
     else:
         st.info("Login to see your streak.")
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTradaILy — All rights reserved</div>', unsafe_allow_html=True)
 
 # -------------------- Entry screen --------------------
 def entry_screen():
@@ -625,7 +625,7 @@ def sidebar_nav():
     if TITLE2_B64:
         st.sidebar.markdown(f'<div style="text-align:center;margin-top:10px;"><img src="data:image/png;base64,{TITLE2_B64}" style="width:180px;"></div>', unsafe_allow_html=True)
     else:
-        st.sidebar.markdown("<h3 style='text-align:center;color:#fff;'>NuTraDaily</h3>", unsafe_allow_html=True)
+        st.sidebar.markdown("<h3 style='text-align:center;color:#fff;'>NuTradaILy</h3>", unsafe_allow_html=True)
 
     st.sidebar.markdown("---")
     # profile block under title
@@ -681,4 +681,5 @@ if st.session_state.logged_in:
         streaks_page()
 else:
     entry_screen()
+
 
