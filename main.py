@@ -78,9 +78,9 @@ st.image(
 # GREETING + MOTIVATION
 # -------------------------------
 current_hour = datetime.datetime.now().hour
-if current_hour > 12:
+if current_hour > 12am:
     greeting = "🌞 Good morning!"
-elif current_hour > 18:
+elif current_hour > 3pm:
     greeting = "🌤️ Good afternoon!"
 else:
     greeting = "🌙 Good evening!"
@@ -292,5 +292,6 @@ elif page == "🔥 Daily Streak 🏅":
 # -------------------------------
 st.sidebar.markdown("---")
 st.sidebar.info("🌿 Made with 💚 by You — NuTraDaily 💧")
+
 
 
