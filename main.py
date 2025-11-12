@@ -7,6 +7,7 @@ import random
 import matplotlib.pyplot as plt
 import json
 from io import BytesIO
+import time
 
 # -------------------------------------------------------
 # Helpers
@@ -34,16 +35,31 @@ def read_profile_image_b64(email):
     filename = f"profiles/{email.replace('@','__at__').replace('.','__dot__')}.png"
     return file_to_base64(filename) if os.path.exists(filename) else None
 
+def get_profile_b64(email):
+    """Return user's profile image b64 or a clipart/default fallback."""
+    # priority: user uploaded -> person clipart -> default avatar -> None
+    b = read_profile_image_b64(email)
+    if b:
+        return b
+    clip = file_to_base64("person_clipart.png")
+    if clip:
+        return clip
+    return file_to_base64("default_avatar.png")
+
 def pretty_date(dt):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-LOGO_B64 = file_to_base64("logo.png")
-TITLE_B64 = file_to_base64("title.png")
-# prefer background2.jpg as requested, fallback to background.jpg
-BG_B64 = file_to_base64("background2.jpg") or file_to_base64("background.jpg")
+# --- Assets (center logo only; title only in sidebar) ---
+LOGO_B64 = file_to_base64("logo.png")             # centered logo
+SIDEBAR_TITLE_B64 = file_to_base64("title (2).png")  # navigation title above profile
+# different backgrounds per area
+LOGIN_BG_B64 = file_to_base64("login.jpg")
+# Use body.jpg as global background for all non-login pages per request
+ABOUT_BG_B64 = file_to_base64("body.jpg")
+GLOBAL_BG_B64 = file_to_base64("body.jpg") or file_to_base64("background2.jpg") or file_to_base64("background.jpg")
 
 USERS_CSV = "users.csv"
-USER_COLS = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal", "SignupDate"]
+USER_COLS = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal", "SignupDate", "ProfileS3Key"]
 
 # simple local DB for food lookup (extensible)
 FOOD_DB = {
@@ -164,13 +180,13 @@ favicon = "logo.png" if os.path.exists("logo.png") else "💧"
 st.set_page_config(page_title="NuTraDaily", page_icon=favicon, layout="wide")
 
 # -------------------------------------------------------
-# CSS - modern & smooth (adjusted spacing + background2)
+# CSS - global; per-page backgrounds injected where needed
 # -------------------------------------------------------
-bg_css = f'background: url("data:image/jpg;base64,{BG_B64}") center/cover fixed;' if BG_B64 else ""
+GLOBAL_BG_CSS = f'background: url("data:image/jpg;base64,{GLOBAL_BG_B64}") center/cover fixed;' if GLOBAL_BG_B64 else ""
 st.markdown(f"""
 <style>
 [data-testid="stAppViewContainer"] {{
-    {bg_css}
+    {GLOBAL_BG_CSS}
     font-family: 'Poppins', sans-serif;
     color: #073a2e;
 }}
@@ -181,46 +197,26 @@ st.markdown(f"""
   100% {{ opacity: 1; transform: translateY(0); }}
 }}
 
-/* Logo + title animation & spacing fixed */
-.fade-in {{
-  animation: fadeSlide 1s ease-out;
-}}
-
+/* Logo centered + spacing */
 .logo-center {{
     display:block;
-    margin: 0 auto 8px; /* added bottom spacing so title isn't jammed */
+    margin: 12px auto 12px;
     width: 160px;
     animation: fadeSlide 1s ease-in-out;
 }}
-.title-center {{
+
+.sidebar-title-img {{
     display:block;
-    margin: 8px auto 12px; /* added top spacing */
-    width: 300px;
-    animation: fadeSlide 1.3s ease-in-out;
+    margin: 6px auto 10px;
+    width: 180px;
 }}
 
 .sidebar-header {{
     display:flex;
     align-items:center;
-    gap:16px; /* increased gap so logo + title have breathing room */
-    padding: 12px 8px;
-}}
-.sidebar-logo {{
-    width:60px;
-    height:60px;
-    border-radius:12px;
-    object-fit:cover;
-}}
-.sidebar-title {{
-    width:170px;
-}}
-
-/* profile in sidebar */
-.sidebar-profile {{
-    display:flex;
-    align-items:center;
     gap:12px;
     padding: 8px;
+    flex-direction:column; /* title stacked */
 }}
 .sidebar-avatar {{
     width:64px;
@@ -231,36 +227,38 @@ st.markdown(f"""
 }}
 .sidebar-name {{
     font-weight:700;
+    margin-top:6px;
 }}
 
 /* panel */
 .panel {{
-    background: rgba(255,255,255,0.9);
+    background: rgba(255,255,255,0.92);
     border-radius: 12px;
-    padding: 20px;
+    padding: 18px;
     animation: fadeSlide 1.1s ease-in-out;
 }}
+.profile-panel {{
+    background: linear-gradient(180deg, rgba(240,250,240,0.95), rgba(255,255,255,0.9));
+    border-radius: 12px;
+    padding: 14px;
+    margin-top:12px;
+}}
+.about-panel {{
+    background: linear-gradient(180deg, rgba(255,250,240,0.95), rgba(255,255,255,0.9));
+    border-radius: 12px;
+    padding: 14px;
+    margin-top:12px;
+}}
+
 .center-box {{
     display:flex;
     justify-content:center;
     align-items:center;
     width:100%;
-    margin-top: 30px;
+    margin-top: 18px;
 }}
 .form-card {{
-    width: 360px; /* shortened column per request */
-}}
-
-.btn-main {{
-    background-color: #1f6b53;
-    color: white;
-    padding: 10px 24px;
-    border-radius: 10px;
-    font-weight: 600;
-}}
-.btn-main:hover {{
-    opacity:0.9;
-    transform: scale(1.02);
+    width: 320px; /* even shorter as requested */
 }}
 
 .compact-btn {{
@@ -274,29 +272,29 @@ st.markdown(f"""
     border: none;
 }}
 
-.glass-wrap {{
-    width:120px;
-    height:220px;
-    border: 2px solid rgba(0,0,0,0.08);
-    border-radius: 6px;
-    position:relative;
-    overflow:hidden;
-    background: linear-gradient(to top, #e6f7ff, white);
-    box-shadow: inset 0 -30px 30px rgba(0,0,0,0.03);
+.help-mark {{
+    font-size:18px;
+    background: rgba(255,255,255,0.85);
+    border-radius:50%;
+    padding:6px 8px;
+    border:1px solid rgba(0,0,0,0.06);
 }}
-.glass-fill {{
-    position:absolute;
-    bottom:0;
-    width:100%;
-    height:0%;
-    background: linear-gradient(to top, #28a6ff, #67d3ff);
-    transition: height 0.4s ease;
+.footer {{
+    font-size:12px;
+    color:#666;
+    text-align:center;
+    margin-top:12px;
+    padding-top:6px;
 }}
-
-@media(max-width:600px) {{
-    .form-card {{ width: 90%; }}
-    .logo-center {{ width:120px; }}
-    .title-center {{ width:220px; }}
+.link-compact {{
+    display:inline-block;
+    padding:8px 12px;
+    border-radius:8px;
+    background:#f0f7ff;
+    border:1px solid #d0e9ff;
+    color:#0366d6;
+    text-decoration:none;
+    font-weight:600;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -304,49 +302,53 @@ st.markdown(f"""
 # -------------------------------------------------------
 # UI Components
 # -------------------------------------------------------
-def render_logo_title_center():
+def inject_page_bg(b64):
+    """Inject page-specific background override (temporary)."""
+    if not b64:
+        return
+    css = f"""
+    <style>
+    [data-testid="stAppViewContainer"] {{
+        background: url("data:image/jpg;base64,{b64}") center/cover fixed !important;
+    }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+def render_logo_center_only():
     html = ""
     if LOGO_B64:
         html += f'<img src="data:image/png;base64,{LOGO_B64}" class="logo-center"/>'
-    if TITLE_B64:
-        html += f'<img src="data:image/png;base64,{TITLE_B64}" class="title-center"/>'
-    st.markdown(html or "<h2 style='text-align:center;'>NuTraDaily</h2>", unsafe_allow_html=True)
-
-def render_sidebar_header():
-    # show logo/title then profile (if logged in) with spacing
-    if LOGO_B64 and TITLE_B64:
-        st.sidebar.markdown(
-            f"""
-            <div class="sidebar-header">
-                <img src="data:image/png;base64,{LOGO_B64}" class="sidebar-logo">
-                <img src="data:image/png;base64,{TITLE_B64}" class="sidebar-title">
-            </div>
-            """, unsafe_allow_html=True)
     else:
-        st.sidebar.markdown("<h3>NuTraDaily</h3>", unsafe_allow_html=True)
+        html += "<h2 style='text-align:center;'>NuTraDaily</h2>"
+    st.markdown(html, unsafe_allow_html=True)
 
-    # show profile area if user logged in
+def render_sidebar_title_and_profile():
+    # show title (2).png at top of sidebar (stacked)
+    if SIDEBAR_TITLE_B64:
+        st.sidebar.markdown(f'<div style="text-align:center;"><img src="data:image/png;base64,{SIDEBAR_TITLE_B64}" class="sidebar-title-img"></div>', unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown("<h3 style='text-align:center;'>NuTraDaily</h3>", unsafe_allow_html=True)
+
+    # profile area if logged in
     if st.session_state.get("logged_in"):
         email = st.session_state.get("current_user", "")
-        profile_b64 = read_profile_image_b64(email) or file_to_base64("default_avatar.png")
+        profile_b64 = get_profile_b64(email)
         user = get_user_record(email)
         name = user["Name"] if user is not None else email.split("@")[0]
         st.sidebar.markdown(
             f"""
-            <div class="sidebar-profile">
-                <img src="data:image/png;base64,{profile_b64}" class="sidebar-avatar">
-                <div>
-                    <div class="sidebar-name">{name}</div>
-                    <div style="font-size:12px;color:#666;">{email}</div>
-                </div>
+            <div style="text-align:center;padding:8px 6px;">
+                <img src="data:image/png;base64,{profile_b64}" class="sidebar-avatar"><br>
+                <div class="sidebar-name">{name}</div>
+                <div style="font-size:12px;color:#666;">{email}</div>
             </div>
             """, unsafe_allow_html=True)
 
 # -------------------------------------------------------
-# Forms
+# Forms (compact & centered)
 # -------------------------------------------------------
 def signup_form(compact=True):
-    # using a programmatic on_click & form to make clicks instant and compact
     with st.form("signup_form", clear_on_submit=False):
         name = st.text_input("Full Name", key="su_name")
         email = st.text_input("Email", key="su_email")
@@ -366,11 +368,16 @@ def signup_form(compact=True):
                     "Height": height, "Weight": weight,
                     "Gender": gender, "Activity": activity, "Goal": goal
                 }):
-                    st.session_state.show_signup = False
-                    st.session_state.show_login = True
+                    # show welcome flash
+                    st.session_state.current_user = email
+                    st.session_state.logged_in = True
+                    st.session_state.show_welcome = True
+                    st.session_state.welcome_name = name
+                    # ensure streak touched
+                    touch_user_streak(email)
+                    st.experimental_rerun()
 
 def login_form():
-    # login uses quick on_click pattern for fast UI response
     with st.form("login_form"):
         email = st.text_input("Email", key="li_email")
         password = st.text_input("Password", type="password", key="li_pass")
@@ -379,7 +386,10 @@ def login_form():
             if authenticate(email, password):
                 st.session_state.logged_in = True
                 st.session_state.current_user = email
-                # touching streaks and login_time
+                # show welcome flash
+                rec = get_user_record(email)
+                st.session_state.welcome_name = rec["Name"] if rec else email.split("@")[0]
+                st.session_state.show_welcome = True
                 if "login_time" not in st.session_state:
                     st.session_state.login_time = pretty_date(datetime.datetime.now())
                 touch_user_streak(email)
@@ -391,43 +401,48 @@ def login_form():
 # Pages
 # -------------------------------------------------------
 def about_us_page():
-    render_logo_title_center()
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    # about uses body.jpg which is already GLOBAL_BG_B64, but inject to be safe
+    if ABOUT_BG_B64:
+        inject_page_bg(ABOUT_BG_B64)
+    render_logo_center_only()
+    st.markdown('<div class="about-panel">', unsafe_allow_html=True)
     st.write("## About Us")
-    # large image if exists
+    # large image if exists (article size)
     if os.path.exists("image.jpg"):
         img_b64 = file_to_base64("image.jpg")
         st.markdown(f'<img src="data:image/jpg;base64,{img_b64}" style="width:100%;border-radius:8px;margin-bottom:12px;">', unsafe_allow_html=True)
     st.text_area("Write About Us", value="Welcome to NuTraDaily — your modern wellness companion.", height=140, key="about_text")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("[📞 Contact us](tel:+911234567890)")
-    with col2:
-        if st.button("Feedback form"):
+    # compact contact / feedback / email buttons
+    c1, c2, c3 = st.columns([1,1,1])
+    with c1:
+        st.markdown('<a class="link-compact" href="tel:+911234567890">📞 Contact</a>', unsafe_allow_html=True)
+    with c2:
+        if st.button("Feedback", key="about_feedback"):
             st.session_state.show_feedback = True
-    with col3:
-        st.markdown("[✉️ Email us](mailto:hello@nutradaily.example)")
-    # feedback form appears inline when toggled
+    with c3:
+        st.markdown('<a class="link-compact" href="mailto:hello@nutradaily.example">✉️ Email</a>', unsafe_allow_html=True)
+
     if st.session_state.get("show_feedback"):
-        with st.form("feedback"):
-            fb_name = st.text_input("Your name")
+        with st.form("feedback_about"):
+            fb_name = st.text_input("Your name (optional)")
             fb_msg = st.text_area("Feedback")
             submitted = st.form_submit_button("Send feedback")
             if submitted:
                 st.success("Thanks — feedback received!")
                 st.session_state.show_feedback = False
+
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # profile edit below about us
+    # profile edit below about us (distinct section)
     if st.session_state.get("logged_in"):
-        st.markdown('<div class="panel" style="margin-top:12px;">', unsafe_allow_html=True)
+        st.markdown('<div class="profile-panel">', unsafe_allow_html=True)
         st.write("### Your Profile")
         email = st.session_state.get("current_user")
         rec = get_user_record(email)
         if rec:
             col1, col2 = st.columns([1,2])
             with col1:
-                profile_b64 = read_profile_image_b64(email) or file_to_base64("default_avatar.png")
+                profile_b64 = get_profile_b64(email)
                 st.markdown(f'<img src="data:image/png;base64,{profile_b64}" style="width:120px;border-radius:60px;">', unsafe_allow_html=True)
                 uploaded = st.file_uploader("Change picture", type=["png","jpg","jpeg"], key="upload_pp")
                 if uploaded:
@@ -443,21 +458,24 @@ def about_us_page():
                     update_user(email, {"Name": new_name, "Height": new_height, "Weight": new_weight, "Activity": new_activity})
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # copyright
+    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
+
 def water_page():
-    render_logo_title_center()
+    # ensure global body.jpg background applied
+    if GLOBAL_BG_B64:
+        inject_page_bg(GLOBAL_BG_B64)
+    render_logo_center_only()
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.write("## Water Tracker")
-    # use glasses model: default glass size 250ml
     daily_goal_l = st.number_input("Daily goal (liters)", 0.5, 10.0, 2.0, step=0.25, key="water_goal")
     glass_ml = st.number_input("Glass size (ml)", 50, 1000, 250, step=50, key="glass_size")
-    # session state for glasses
     if "water_glasses" not in st.session_state:
         st.session_state.water_glasses = 0
     col1, col2, col3 = st.columns([1,1,1])
     with col1:
         if st.button("Add glass"):
             st.session_state.water_glasses += 1
-            # optional: quick reminder
             st.toast("Added a glass! 💧")
     with col2:
         if st.button("Remove glass") and st.session_state.water_glasses > 0:
@@ -466,10 +484,8 @@ def water_page():
         if st.button("Reset"):
             st.session_state.water_glasses = 0
 
-    # calculate liters consumed
     consumed_l = (st.session_state.water_glasses * glass_ml) / 1000.0
     pct = min(consumed_l / daily_goal_l, 1.0) if daily_goal_l else 0.0
-    # glass visualization
     filled_pct = int(min(100, (consumed_l / daily_goal_l) * 100)) if daily_goal_l else 0
     html = f"""
     <div style="display:flex;gap:20px;align-items:flex-end;">
@@ -486,13 +502,14 @@ def water_page():
     st.markdown(html, unsafe_allow_html=True)
     st.progress(pct)
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
 
 def nutrition_page():
-    render_logo_title_center()
+    if GLOBAL_BG_B64:
+        inject_page_bg(GLOBAL_BG_B64)
+    render_logo_center_only()
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.write("## Nutrition")
-
-    # quick calculators: BMR (Mifflin-St Jeor)
     weight = st.number_input("Weight (kg)", 30.0, 300.0, 65.0, key="nut_weight")
     height = st.number_input("Height (cm)", 120.0, 250.0, 170.0, key="nut_height")
     age = st.number_input("Age (years)", 10, 100, 25, key="nut_age")
@@ -504,15 +521,12 @@ def nutrition_page():
     gain = maintenance + 500
     loss = maintenance - 500
     st.markdown(f"**Estimated maintenance:** {int(maintenance)} kcal · **To gain:** {int(gain)} kcal · **To lose:** {int(loss)} kcal")
-
-    # daily calorie tracker
     st.write("### Daily calorie tracker")
     if not st.session_state.get("current_user"):
         st.info("Login to track your personal daily intake.")
     else:
         email = st.session_state["current_user"]
         target = st.number_input("Set daily calorie target", 800, 6000, 2000, key="cal_target")
-        # food search
         q = st.text_input("Search food (try 'apple', 'rice (100g)', etc.)", key="food_search")
         if st.button("Search food"):
             key = q.strip().lower()
@@ -527,7 +541,6 @@ def nutrition_page():
                         st.success(f"Added {q} — {cal} kcal")
             else:
                 st.warning("Item not found in local DB. For web results, integrate a food API (TODO).")
-        # manual add
         with st.form("manual_food"):
             item = st.text_input("Item name")
             kcal = st.number_input("Calories", 0, 5000, 100)
@@ -544,9 +557,12 @@ def nutrition_page():
             for r in recs:
                 st.write(f"- {r['Item']} — {r['Calories']} kcal")
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
 
 def progress_page():
-    render_logo_title_center()
+    if GLOBAL_BG_B64:
+        inject_page_bg(GLOBAL_BG_B64)
+    render_logo_center_only()
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.write("## Weekly Progress")
     dates = pd.date_range(datetime.datetime.now() - datetime.timedelta(days=6), datetime.datetime.now())
@@ -557,9 +573,12 @@ def progress_page():
     plt.tight_layout()
     st.pyplot(plt)
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
 
 def streaks_page():
-    render_logo_title_center()
+    if GLOBAL_BG_B64:
+        inject_page_bg(GLOBAL_BG_B64)
+    render_logo_center_only()
     st.markdown('<div class="panel">', unsafe_allow_html=True)
     st.write("## Streaks")
     if st.session_state.get("logged_in"):
@@ -569,9 +588,10 @@ def streaks_page():
     else:
         st.info("Login to see your streak.")
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer">© NuTraDaily — All rights reserved</div>', unsafe_allow_html=True)
 
 # -------------------------------------------------------
-# Entry screen (compact buttons + instant on_click)
+# Entry screen (compact buttons + leftmost help '?')
 # -------------------------------------------------------
 def show_login_click():
     st.session_state.show_login = True
@@ -582,52 +602,65 @@ def show_signup_click():
     st.session_state.show_login = False
 
 def entry_screen():
-    render_logo_title_center()
+    # login background
+    if LOGIN_BG_B64:
+        inject_page_bg(LOGIN_BG_B64)
+    render_logo_center_only()
     st.markdown('<div class="center-box fade-in">', unsafe_allow_html=True)
     st.markdown('<div class="panel form-card" style="text-align:center;">', unsafe_allow_html=True)
-    # dynamic greeting with name/time on main entry
-    hour = datetime.datetime.now().hour
-    if st.session_state.get("logged_in"):
-        user = get_user_record(st.session_state["current_user"])
-        uname = user["Name"] if user else st.session_state["current_user"].split("@")[0]
-        if 0 <= hour < 12:
-            greet = f"🌞 Hey {uname}, good morning!"
-        elif 12 <= hour < 17:
-            greet = f"🌤️ Hey {uname}, good afternoon!"
-        else:
-            greet = f"🌙 Hey {uname}, good evening!"
-        st.markdown(f"### {greet}")
-    else:
-        if 0 <= hour < 12:
-            st.markdown("### 🌞 Good morning! Welcome to NuTraDaily")
-        elif 12 <= hour < 17:
-            st.markdown("### 🌤️ Good afternoon! Welcome to NuTraDaily")
-        else:
-            st.markdown("### 🌙 Good evening! Welcome to NuTraDaily")
 
-    # compact buttons in columns
-    c1, c2 = st.columns(2)
-    with c1:
-        st.button("Login", key="login_btn_compact", on_click=show_login_click)
-    with c2:
-        st.button("Sign Up", key="signup_btn_compact", on_click=show_signup_click)
+    # layout: left small help, center form
+    left_col, center_col, right_col = st.columns([0.2, 1, 0.2])
+    with left_col:
+        if st.button("?", key="help_q"):
+            st.info("How to sign up / log in:\n\n1) Click Sign Up and fill fields. 2) After signing up you'll see a welcome greeting. 3) Login with email/password. If you forget password, re-register with another email.")
+    with center_col:
+        # dynamic greeting with name/time on main entry (centered)
+        hour = datetime.datetime.now().hour
+        if st.session_state.get("logged_in"):
+            user = get_user_record(st.session_state["current_user"])
+            uname = user["Name"] if user else st.session_state["current_user"].split("@")[0]
+            if 0 <= hour < 12:
+                greet = f"🌞 Hey {uname}, good morning!"
+            elif 12 <= hour < 17:
+                greet = f"🌤️ Hey {uname}, good afternoon!"
+            else:
+                greet = f"🌙 Hey {uname}, good evening!"
+            st.markdown(f"<div style='text-align:center;font-size:20px;font-weight:700;'>{greet}</div>", unsafe_allow_html=True)
+        else:
+            if 0 <= hour < 12:
+                st.markdown("<div style='text-align:center;font-size:20px;font-weight:700;'>🌞 Good morning! Welcome to NuTraDaily</div>", unsafe_allow_html=True)
+            elif 12 <= hour < 17:
+                st.markdown("<div style='text-align:center;font-size:20px;font-weight:700;'>🌤️ Good afternoon! Welcome to NuTraDaily</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='text-align:center;font-size:20px;font-weight:700;'>🌙 Good evening! Welcome to NuTraDaily</div>", unsafe_allow_html=True)
 
-    # show form inline when toggled (shorter column)
-    if st.session_state.get("show_login"):
-        st.markdown("<hr>", unsafe_allow_html=True)
-        login_form()
-    if st.session_state.get("show_signup"):
-        st.markdown("<hr>", unsafe_allow_html=True)
-        signup_form()
+        # compact centered buttons
+        st.write("")  # spacer
+        btn_col1, btn_col2 = st.columns([1,1])
+        with btn_col1:
+            st.button("Login", key="login_btn_compact", on_click=show_login_click)
+        with btn_col2:
+            st.button("Sign Up", key="signup_btn_compact", on_click=show_signup_click)
+
+        # show forms inline when toggled
+        if st.session_state.get("show_login"):
+            st.markdown("<hr>", unsafe_allow_html=True)
+            login_form()
+        if st.session_state.get("show_signup"):
+            st.markdown("<hr>", unsafe_allow_html=True)
+            signup_form()
+    with right_col:
+        st.write("")  # empty for symmetry
+
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 # -------------------------------------------------------
-# Sidebar & Navigation (professional fields instead of circle checkbox)
+# Sidebar & Navigation
 # -------------------------------------------------------
 def sidebar_and_nav():
-    render_sidebar_header()
+    render_sidebar_title_and_profile()
     st.sidebar.markdown("---")
-    # use selectbox for quick professional feel
     choice = st.sidebar.selectbox("Navigate", ["About Us", "Water", "Nutrition", "Progress", "Streaks"])
     return choice
 
@@ -642,24 +675,34 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "show_feedback" not in st.session_state:
     st.session_state.show_feedback = False
+if "show_welcome" not in st.session_state:
+    st.session_state.show_welcome = False
+
+# If welcome flag is set, show big greeting then fade (quick)
+if st.session_state.get("show_welcome"):
+    # a quick centered big greeting before proceeding
+    name = st.session_state.get("welcome_name", "Friend")
+    placeholder = st.empty()
+    placeholder.markdown(f"<div style='text-align:center;margin-top:80px;font-size:40px;font-weight:900;'>✨ Welcome, {name}! ✨</div>", unsafe_allow_html=True)
+    # short pause to let it show
+    time.sleep(1.5)
+    placeholder.empty()
+    st.session_state.show_welcome = False
+    # proceed to app view (no rerun needed)
 
 # main routing
 if st.session_state.logged_in:
-    # greet + quick reminders (basic)
     email = st.session_state.current_user
-    # show sidebar and nav
     choice = sidebar_and_nav()
-    # small real-time reminders demo: remind if no water glasses added yet and it's a typical drinking hour
+
+    # lightweight in-app reminder (UI only)
     now = datetime.datetime.now()
     if "last_reminder_minute" not in st.session_state:
         st.session_state.last_reminder_minute = -999
-    # reminder every 60 minutes at most
     if now.minute != st.session_state.last_reminder_minute and now.hour in range(8,22):
-        # show light reminder
         st.info("Reminder: stay hydrated — add a glass in Water Tracker 💧")
         st.session_state.last_reminder_minute = now.minute
 
-    # route pages
     if choice == "About Us":
         about_us_page()
     elif choice == "Water":
@@ -673,8 +716,7 @@ if st.session_state.logged_in:
 
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout"):
-        # clear relevant state and rerun
-        for key in ["logged_in", "show_login", "show_signup", "current_user", "login_time"]:
+        for key in ["logged_in", "show_login", "show_signup", "current_user", "login_time", "welcome_name"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.experimental_rerun()
