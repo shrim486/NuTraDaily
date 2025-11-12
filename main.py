@@ -4,107 +4,118 @@ import datetime
 import os
 import random
 import matplotlib.pyplot as plt
-from io import BytesIO
-import base64
 
-# ------------------------------------------------
-# PAGE CONFIG (App icon = logo)
-# ------------------------------------------------
+# -------------------------------
+# PAGE CONFIG (logo as favicon)
+# -------------------------------
 st.set_page_config(page_title="NuTraDaily", page_icon="logo.png", layout="wide")
 
-# ------------------------------------------------
-# IMAGE HANDLING (Ensures logo, title & bg work everywhere)
-# ------------------------------------------------
-def load_image_base64(path):
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return None
-
-bg_base64 = load_image_base64("background.jpg")
-logo_base64 = load_image_base64("logo.png")
-title_base64 = load_image_base64("title.png")
-
-# ------------------------------------------------
-# CUSTOM CSS (Optimized for speed)
-# ------------------------------------------------
-css = f"""
+# -------------------------------
+# 🌈 CUSTOM CSS
+# -------------------------------
+page_bg = """
 <style>
-[data-testid="stAppViewContainer"] {{
-    background: url("data:image/jpg;base64,{bg_base64 if bg_base64 else ''}");
+[data-testid="stAppViewContainer"] {
+    background: url('background.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     font-family: 'Poppins', sans-serif;
     color: #1b4332;
-}}
+    transition: all 0.3s ease-in-out;
+}
 
-[data-testid="stSidebar"] {{
+/* Sidebar */
+[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #1b4332 0%, #2d6a4f 100%);
     color: #ffffff;
-}}
-
+}
 [data-testid="stSidebar"] h1, 
 [data-testid="stSidebar"] h2, 
 [data-testid="stSidebar"] label, 
 [data-testid="stSidebar"] p, 
-[data-testid="stSidebar"] div {{
+[data-testid="stSidebar"] div {
     color: #f1faee !important;
     font-weight: 600 !important;
-}}
+}
 
-button {{
+/* Buttons */
+button {
     border-radius: 10px !important;
     font-weight: 600 !important;
     background-color: #52b788 !important;
     color: white !important;
-}}
-button:hover {{
+}
+button:hover {
     background-color: #40916c !important;
-}}
+}
 
-.logo {{
-    position: absolute;
-    top: 15px;
-    left: 25px;
-    width: 80px;
-}}
-.title-image {{
+/* Logo + Title */
+.logo {
     display: block;
     margin: auto;
-    width: 280px;
-}}
+    width: 130px;
+}
+.title-image {
+    display: block;
+    margin: 10px auto 25px;
+    width: 350px;
+}
 
-.addon-space {{
+/* Entry Icons */
+.entry-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 80px;
+    height: 80vh;
+}
+.entry-icon {
+    text-align: center;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.entry-icon img {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 3px solid #2d6a4f;
+}
+.entry-icon:hover {
+    transform: scale(1.1);
+}
+.entry-icon p {
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #1b4332;
+}
+
+/* Add-ons */
+.addon-space {
     display: flex;
     justify-content: center;
     gap: 25px;
     margin-top: 40px;
-}}
-.addon-space img {{
+}
+.addon-space img {
     width: 120px;
+    height: auto;
     border-radius: 10px;
     cursor: pointer;
-}}
+}
 </style>
 """
-st.markdown(css, unsafe_allow_html=True)
+st.markdown(page_bg, unsafe_allow_html=True)
 
-# ------------------------------------------------
-# USER FILE HANDLING (error-proof)
-# ------------------------------------------------
+# -------------------------------
+# FILE HANDLING
+# -------------------------------
 user_file = "users.csv"
 expected_cols = ["Name", "Email", "Password", "Height", "Weight", "Gender", "Activity", "Goal"]
 
 if not os.path.exists(user_file):
     pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
-else:
-    try:
-        df = pd.read_csv(user_file)
-        if list(df.columns) != expected_cols:
-            pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
-    except Exception:
-        pd.DataFrame(columns=expected_cols).to_csv(user_file, index=False)
 
 def load_users():
     return pd.read_csv(user_file)
@@ -124,16 +135,14 @@ def authenticate(email, password):
     user = df[(df["Email"] == email) & (df["Password"] == password)]
     return not user.empty
 
-# ------------------------------------------------
-# AUTH PAGES
-# ------------------------------------------------
+# -------------------------------
+# LOGIN & SIGNUP
+# -------------------------------
 def signup_page():
-    if logo_base64:
-        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
-    if title_base64:
-        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
-
+    st.image("logo.png", width=130)
+    st.image("title.png", width=330)
     st.subheader("📝 Sign Up for NuTraDaily")
+
     with st.form("signup_form"):
         name = st.text_input("Full Name")
         email = st.text_input("Email")
@@ -147,23 +156,25 @@ def signup_page():
 
         if submit:
             save_user({
-                "Name": name, "Email": email, "Password": password,
-                "Height": height, "Weight": weight, "Gender": gender,
-                "Activity": activity, "Goal": goal
+                "Name": name,
+                "Email": email,
+                "Password": password,
+                "Height": height,
+                "Weight": weight,
+                "Gender": gender,
+                "Activity": activity,
+                "Goal": goal
             })
 
     st.markdown("---")
-    st.info("Already have an account?")
-    if st.button("🔑 Go to Login"):
+    if st.button("🔑 Already have an account? Login"):
         st.session_state.page = "login"
 
 def login_page():
-    if logo_base64:
-        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
-    if title_base64:
-        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
-
+    st.image("logo.png", width=130)
+    st.image("title.png", width=330)
     st.subheader("🔐 Login to NuTraDaily")
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -176,92 +187,30 @@ def login_page():
             st.error("❌ Invalid email or password!")
 
     st.markdown("---")
-    st.info("Don't have an account?")
-    if st.button("📝 Go to Sign Up"):
+    if st.button("📝 Don’t have an account? Sign Up"):
         st.session_state.page = "signup"
 
-# ------------------------------------------------
-# APP FEATURES
-# ------------------------------------------------
+# -------------------------------
+# FEATURES
+# -------------------------------
 def water_tracker():
     st.title("💧 Water Tracker")
-    goal = st.number_input("Daily water goal (liters):", 0.5, 10.0, step=0.5)
-    consumed = st.number_input("Consumed so far (liters):", 0.0, goal, step=0.1)
-    percent = (consumed / goal) * 100 if goal else 0
-    st.progress(percent / 100)
-    st.info(f"💦 {percent:.1f}% of goal reached")
+    water_goal = st.number_input("Enter your daily goal (liters):", min_value=0.5, max_value=10.0, step=0.5)
+    consumed = st.number_input("Enter water consumed so far (liters):", min_value=0.0, max_value=water_goal, step=0.1)
+    progress = (consumed / water_goal) * 100 if water_goal > 0 else 0
+    st.progress(progress / 100)
+    st.info(f"💦 You’ve reached {progress:.1f}% of your daily goal!")
 
 def nutrition_page():
     st.title("🍎 Nutrition & Diet Plan")
-    cal = st.number_input("Calories consumed today:", min_value=0)
-    target = st.number_input("Target calories:", min_value=1000)
-    st.progress(min(cal / target, 1.0))
-    st.info(f"🔥 {cal} / {target} kcal")
+    st.write("Track your daily calories and maintain a healthy diet.")
+    calories = st.number_input("Calories consumed today:", min_value=0)
+    goal = st.number_input("Target daily calories:", min_value=1000)
+    st.progress(min(calories / goal, 1.0))
+    st.info(f"🔥 {calories} / {goal} kcal")
 
 def goal_progress():
     st.title("🎯 Goal Progress")
+    st.write("Visualize your weekly progress.")
     dates = pd.date_range(datetime.datetime.now() - datetime.timedelta(days=6), datetime.datetime.now())
-    progress = [random.randint(50, 100) for _ in range(7)]
-    plt.plot(dates, progress, marker='o')
-    plt.ylabel("Goal Achievement (%)")
-    st.pyplot(plt)
-
-def daily_streak():
-    st.title("🔥 Daily Streaks & Achievements")
-    streak_days = random.randint(1, 15)
-    st.success(f"🔥 You've maintained your streak for {streak_days} days straight!")
-
-# ------------------------------------------------
-# MAIN APP
-# ------------------------------------------------
-def main_app():
-    if logo_base64:
-        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo">', unsafe_allow_html=True)
-    if title_base64:
-        st.markdown(f'<img src="data:image/png;base64,{title_base64}" class="title-image">', unsafe_allow_html=True)
-
-    greeting = "🌞 Good morning!" if datetime.datetime.now().hour < 12 else \
-               "🌤️ Good afternoon!" if datetime.datetime.now().hour < 17 else "🌙 Good evening!"
-    st.toast(f"{greeting} Stay consistent 💪", icon="💪")
-
-    st.sidebar.title("📋 Dashboard")
-    choice = st.sidebar.radio("Navigate", ["🏠 Home", "🍎 Nutrition", "💧 Water Tracker", "🎯 Progress", "🔥 Streaks"])
-
-    if choice == "🏠 Home":
-        st.title("🌿 Welcome to NuTraDaily!")
-        st.write("Your all-in-one wellness tracking dashboard.")
-        st.markdown("""
-        <div class="addon-space">
-            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+1"></a>
-            <a href="#"><img src="https://via.placeholder.com/120x120.png?text=Add-On+2"></a>
-        </div>
-        """, unsafe_allow_html=True)
-    elif choice == "🍎 Nutrition":
-        nutrition_page()
-    elif choice == "💧 Water Tracker":
-        water_tracker()
-    elif choice == "🎯 Progress":
-        goal_progress()
-    elif choice == "🔥 Streaks":
-        daily_streak()
-
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.session_state.page = "login"
-
-# ------------------------------------------------
-# SESSION NAVIGATION
-# ------------------------------------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "page" not in st.session_state:
-    st.session_state.page = "login"
-
-if st.session_state.logged_in:
-    main_app()
-else:
-    if st.session_state.page == "signup":
-        signup_page()
-    else:
-        login_page()
+    progress = [random]()
