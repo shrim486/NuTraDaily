@@ -382,7 +382,7 @@ def signup_form():
                     st.session_state.show_welcome = True
                     st.session_state.welcome_name = name
                     touch_user_streak(email)
-                    st.experimental_rerun()
+                    st.rerun()
 
 def login_form():
     with st.form("login_form"):
@@ -399,7 +399,7 @@ def login_form():
                 if "login_time" not in st.session_state:
                     st.session_state.login_time = pretty_date(datetime.datetime.now())
                 touch_user_streak(email)
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Invalid email or password")
 
@@ -455,7 +455,7 @@ def profile_page():
                 if uploaded:
                     saved = save_profile_image(email, uploaded)
                     if saved:
-                        st.experimental_rerun()
+                        st.rerun()
             with col2:
                 new_name = st.text_input("Name", value=rec["Name"])
                 new_height = st.number_input("Height (cm)", 50.0, 250.0, float(rec.get("Height") if rec.get("Height") else 170.0))
@@ -646,7 +646,7 @@ def sidebar_nav():
         for k in ["logged_in", "show_welcome", "current_user", "login_time", "welcome_name"]:
             if k in st.session_state:
                 del st.session_state[k]
-        st.experimental_rerun()
+        st.rerun()
     return choice
 
 # -------------------- Session defaults --------------------
